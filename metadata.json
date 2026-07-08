@@ -1,0 +1,6 @@
+{
+  "name": "ERC-20z Launchpad",
+  "description": "An interactive simulation, deployment, and explorer dashboard for Artrun.io and Zora Coins (ERC-20z) hybrid tokens with automated Uniswap V3 liquidity pool calculations, real-time trade fee tracking, and full Android deployment guides.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
