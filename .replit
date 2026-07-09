@@ -1,0 +1,13 @@
+# Replit Configuration
+run = "npm install && npm run dev"
+
+[nix]
+channel = "stable-23_11"
+
+[deployment]
+run = ["npm", "run", "dev"]
+
+[ports]
+[ports.vite]
+localPort = 3000
+externalPort = 80

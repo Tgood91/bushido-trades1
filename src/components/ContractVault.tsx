@@ -90,6 +90,7 @@ contract LaunchpadCoin is ERC20, Ownable {
 
     error ZeroAddress();
     error OnlyHook();
+    error FeeSendFailed();
 
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000e18;
 
@@ -143,10 +144,17 @@ contract LaunchpadCoin is ERC20, Ownable {
         uint256 total = msg.value;
         if (total == 0) return;
 
-        uint256 creatorAmount = (total * CREATOR_FEE_BPS) / 100;
-        uint256 tradeRefAmount = (total * TRADE_REFERRER_FEE_BPS) / 100;
-        uint256 createRefAmount = (total * CREATE_REFERRER_FEE_BPS) / 100;
-        uint256 platformAmount = total - creatorAmount - tradeRefAmount - createRefAmount;
+        uint256 creatorAmount;
+        uint256 tradeRefAmount;
+        uint256 createRefAmount;
+        uint256 platformAmount;
+
+        unchecked {
+            creatorAmount = (total * CREATOR_FEE_BPS) / 100;
+            tradeRefAmount = (total * TRADE_REFERRER_FEE_BPS) / 100;
+            createRefAmount = (total * CREATE_REFERRER_FEE_BPS) / 100;
+            platformAmount = total - creatorAmount - tradeRefAmount - createRefAmount;
+        }
 
         _send(fundsRecipient,    creatorAmount);
         _send(platformRecipient, platformAmount);
@@ -186,7 +194,7 @@ contract LaunchpadCoin is ERC20, Ownable {
         (bool ok,) = to.call{value: amount}("");
         if (!ok) {
             (bool ok2,) = platformRecipient.call{value: amount}("");
-            require(ok2, "Fee send failed");
+            if (!ok2) revert FeeSendFailed();
         }
     }
 
@@ -280,8 +288,12 @@ contract LaunchpadCoinFactory is Ownable2Step, ReentrancyGuard {
 
         newCoin.transfer(creator, CREATOR_ALLOCATION);
 
-        uint256 platformFee = (initialLiquidityETH * platformFeeBps) / 10000;
-        uint256 liquidityETH = initialLiquidityETH - platformFee;
+        uint256 platformFee;
+        uint256 liquidityETH;
+        unchecked {
+            platformFee = (initialLiquidityETH * platformFeeBps) / 10000;
+            liquidityETH = initialLiquidityETH - platformFee;
+        }
 
         if (platformFee > 0) {
             (bool ok,) = platformRecipient.call{value: platformFee}("");

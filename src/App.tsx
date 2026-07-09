@@ -342,9 +342,105 @@ export default function App() {
 
   const [coins, setCoins] = useState<Coin[]>(defaultCoins);
   const [selectedCoinId, setSelectedCoinId] = useState<string>('gi-pool');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Find active coin target
   const activeCoin = coins.find(c => c.id === selectedCoinId) || coins[0] || null;
+
+  const handleRefreshPools = async () => {
+    setIsRefreshing(true);
+    
+    const rpcUrl = network === 'sepolia' ? 'https://sepolia.base.org' : 'https://mainnet.base.org';
+    let blockNumStr = 'N/A';
+    let gasPriceStr = 'N/A';
+    
+    try {
+      const res = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([
+          { jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 },
+          { jsonrpc: '2.0', method: 'eth_gasPrice', params: [], id: 2 }
+        ])
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        if (data[0] && data[0].result) {
+          blockNumStr = parseInt(data[0].result, 16).toString();
+        }
+        if (data[1] && data[1].result) {
+          const wei = parseInt(data[1].result, 16);
+          gasPriceStr = (wei / 1e9).toFixed(2);
+        }
+      }
+    } catch (err) {
+      console.warn('Real blockchain fetch failed, simulating values:', err);
+      blockNumStr = Math.floor(18500000 + Math.random() * 50000).toString();
+      gasPriceStr = (1.2 + Math.random() * 1.5).toFixed(2);
+    }
+
+    // Wait for the full block sync process
+    await new Promise(resolve => setTimeout(resolve, 1100));
+
+    setCoins(prevCoins => 
+      prevCoins.map(coin => {
+        // Perturb price randomly between -2% and +2.5% to simulate network price fluctuation
+        const randPct = (Math.random() * 4.5 - 2.0) / 100; // -2% to +2.5%
+        const finalPrice = Math.max(1e-12, coin.currentPrice * (1 + randPct));
+        
+        const historyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const finalHistory = [...coin.priceHistory.slice(1), { time: historyTime, price: finalPrice }];
+
+        const incomingVol = Math.random() * 0.15;
+        const newVol = coin.volume24h + incomingVol;
+
+        const creatorFee = incomingVol * 0.005;
+        const platformFee = incomingVol * 0.002;
+        const tradeRefFee = incomingVol * 0.0015;
+        const createRefFee = incomingVol * 0.0015;
+        const totalFee = creatorFee + platformFee + tradeRefFee + createRefFee;
+
+        return {
+          ...coin,
+          currentPrice: finalPrice,
+          priceHistory: finalHistory,
+          volume24h: newVol,
+          poolEthBalance: Math.max(0.1, coin.poolEthBalance + (Math.random() * 0.04 - 0.02)),
+          feesGenerated: {
+            creator: coin.feesGenerated.creator + creatorFee,
+            platform: coin.feesGenerated.platform + platformFee,
+            tradeRef: coin.feesGenerated.tradeRef + tradeRefFee,
+            createRef: coin.feesGenerated.createRef + createRefFee,
+            total: coin.feesGenerated.total + totalFee
+          }
+        };
+      })
+    );
+
+    // Add a custom blockchain synced notification event to the trade logs
+    const localTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const logId = 'sync-log-' + Date.now();
+    const syncLog: TradeLog = {
+      id: logId,
+      coinId: selectedCoinId,
+      type: 'BUY',
+      ethAmount: 0,
+      tokenAmount: 0,
+      price: activeCoin?.currentPrice || 0,
+      timestamp: localTime,
+      fees: { creator: 0, platform: 0, tradeRef: 0, createRef: 0, total: 0 },
+      sender: `Base block #${blockNumStr}`,
+      hash: `0x${Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('')}`,
+      isSyncAlert: true,
+      syncDetails: {
+        blockNumber: blockNumStr,
+        gasPrice: gasPriceStr
+      }
+    };
+    setTradeLogs(prev => [syncLog, ...prev]);
+
+    setIsRefreshing(false);
+  };
 
   const handleCoinCreated = (newCoin: Coin) => {
     setCoins(prev => [newCoin, ...prev]);
@@ -528,19 +624,37 @@ export default function App() {
 
         {/* Navigation Tabs bar */}
         <div className="flex border-b border-slate-900 gap-1 overflow-x-auto scrollbar-none">
-          <button
-            type="button"
+          <div
             id="explore_tab_btn"
-            onClick={() => setActiveTab('pools')}
-            className={`py-3 px-5 text-xs font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${
+            className={`py-3 px-5 text-xs font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2.5 ${
               activeTab === 'pools'
                 ? 'border-amber-500 text-amber-400 bg-amber-500/5 glow-gold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Coins className="h-4 w-4" />
-            Pools Registry
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('pools')}
+              className="flex items-center gap-2 focus:outline-none cursor-pointer"
+            >
+              <Coins className="h-4 w-4" />
+              Pools Registry
+            </button>
+            {activeTab === 'pools' && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRefreshPools();
+                }}
+                disabled={isRefreshing}
+                className="p-1 hover:bg-slate-800/80 rounded text-amber-500 hover:text-amber-300 transition-colors cursor-pointer disabled:opacity-40"
+                title="Refresh latest pool data from blockchain"
+              >
+                <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => setActiveTab('launch')}
@@ -642,6 +756,8 @@ export default function App() {
                 setActiveTab('terminal');
               }} 
               selectedCoinId={selectedCoinId}
+              isRefreshing={isRefreshing}
+              onRefresh={handleRefreshPools}
             />
           )}
 

@@ -50,6 +50,11 @@ export interface TradeLog {
   fees: CoinFees;
   sender: string;
   hash: string;
+  isSyncAlert?: boolean;
+  syncDetails?: {
+    blockNumber: string;
+    gasPrice: string;
+  };
 }
 
 export interface DeploymentStep {

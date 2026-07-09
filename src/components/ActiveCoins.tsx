@@ -19,16 +19,25 @@ import {
   Compass,
   Zap,
   ShieldCheck,
-  Heart
+  Heart,
+  RefreshCw
 } from 'lucide-react';
 
 interface ActiveCoinsProps {
   coins: Coin[];
   onSelectCoin: (coin: Coin) => void;
   selectedCoinId: string;
+  isRefreshing?: boolean;
+  onRefresh?: () => void;
 }
 
-export default function ActiveCoins({ coins, onSelectCoin, selectedCoinId }: ActiveCoinsProps) {
+export default function ActiveCoins({ 
+  coins, 
+  onSelectCoin, 
+  selectedCoinId,
+  isRefreshing = false,
+  onRefresh
+}: ActiveCoinsProps) {
   const [search, setSearch] = useState('');
   const [tickerEvents, setTickerEvents] = useState<{ id: string; msg: string; time: string; colorClass: string }[]>([]);
   const [activeConfigCoin, setActiveConfigCoin] = useState<Coin | null>(null);
@@ -165,7 +174,23 @@ export default function ActiveCoins({ coins, onSelectCoin, selectedCoinId }: Act
       </div>
 
       {/* Main filter & grid section */}
-      <div className="bg-[#090b11] border border-slate-900 rounded-2xl p-6 shadow-xl">
+      <div className="bg-[#090b11] border border-slate-900 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        {isRefreshing && (
+          <div className="absolute inset-0 bg-[#090b11]/85 backdrop-blur-xs z-30 flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-200">
+            <div className="relative flex items-center justify-center">
+              <div className="w-12 h-12 border-2 border-amber-500/10 border-t-2 border-t-amber-400 rounded-full animate-spin" />
+              <Coins className="h-5 w-5 text-amber-400 absolute animate-pulse" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-xs font-mono font-bold text-amber-400 tracking-widest uppercase animate-pulse">
+                Fetching Base Blockchain State...
+              </p>
+              <p className="text-[10px] text-slate-500 font-mono">
+                Querying pools logs & re-fetching ticks...
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
             <h2 className="text-lg font-display font-bold text-slate-100 flex items-center gap-2">

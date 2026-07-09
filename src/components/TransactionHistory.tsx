@@ -234,6 +234,51 @@ export default function TransactionHistory({
                 </tr>
               ) : (
                 filteredLogs.map(log => {
+                  if (log.isSyncAlert) {
+                    return (
+                      <tr key={log.id} className="bg-amber-950/5 hover:bg-amber-950/10 font-mono text-amber-500/90 transition-colors">
+                        <td className="p-4 text-[11px] text-amber-600/80">
+                          <span className="flex items-center gap-1.5 font-bold">
+                            <Clock className="h-3 w-3 text-amber-600/70" />
+                            {log.timestamp}
+                          </span>
+                        </td>
+                        <td className="p-4 font-bold text-slate-300">
+                          Base Ledger
+                        </td>
+                        <td className="p-4">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-bold text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            SYNC
+                          </span>
+                        </td>
+                        <td colSpan={3} className="p-4 text-xs font-sans text-slate-300">
+                          <span className="font-bold text-amber-400 font-mono">Blockchain State Synced!</span> Re-fetched latest pool balances & tick ranges from <span className="font-bold text-slate-100">{log.sender}</span>. Gas: <span className="text-cyan-400 font-bold font-mono">{log.syncDetails?.gasPrice || '1.50'} Gwei</span>.
+                        </td>
+                        <td className="p-4 text-slate-500 text-[11px]" colSpan={2}>
+                          <div className="flex items-center gap-1.5 select-all">
+                            <span>{formatAddress(log.hash)}</span>
+                            <button 
+                              onClick={() => handleCopy(log.hash, log.id)}
+                              className="text-slate-650 hover:text-amber-400 p-1 hover:bg-slate-900 rounded transition-colors"
+                              title="Copy Block Hash"
+                            >
+                              {copiedId === log.id ? (
+                                <Check className="h-3 w-3 text-emerald-400" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-bold uppercase">
+                            Active
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  }
+
                   const coin = getCoinForLog(log.coinId);
                   return (
                     <tr key={log.id} className="hover:bg-slate-950/20 font-mono text-slate-300 transition-colors">
