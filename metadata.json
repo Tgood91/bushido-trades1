@@ -1,6 +1,6 @@
 {
   "name": "ERC-20z Launchpad",
-  "description": "An interactive simulation, deployment, and explorer dashboard for Artrun.io and Zora Coins (ERC-20z) hybrid tokens with automated Uniswap V3 liquidity pool calculations, real-time trade fee tracking, and full Android deployment guides.",
+  "description": "Full-stack Bushido Trading Protocol on Base with automated daily stablecoin swap cron job (0.05 USDC to USDbC, DAI, CADC, EURC), Reown / WalletConnect diagnostics & Project ID manager, multi-router failover (1inch, LI.FI, 0x), and Stanley Druckenmiller Macro Agent.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

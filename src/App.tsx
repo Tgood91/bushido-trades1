@@ -11,6 +11,10 @@ import BushidoTradingDashboard from './components/BushidoTradingDashboard';
 import TestingSuite from './components/TestingSuite';
 import ToadGang from './components/ToadGang';
 import TransactionHistory from './components/TransactionHistory';
+import Web3Modal from './components/Web3Modal';
+import DruckenmillerAgentPlatform from './components/DruckenmillerAgentPlatform';
+import DailyStablecoinCronJob from './components/DailyStablecoinCronJob';
+import { apiService } from './services/api';
 const bushidoIcon = '/src/assets/images/bushido_icon_1783540049716.jpg';
 import { 
   Plus, 
@@ -28,7 +32,10 @@ import {
   UserCheck,
   ShieldCheck,
   Server,
-  History
+  History,
+  Bot,
+  Fuel,
+  Clock
 } from 'lucide-react';
 
 const generateInitialTradeLogs = (): TradeLog[] => {
@@ -109,10 +116,11 @@ const generateInitialTradeLogs = (): TradeLog[] => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'pools' | 'launch' | 'terminal' | 'vault' | 'playbook' | 'bushido' | 'testing' | 'history'>('pools');
+  const [activeTab, setActiveTab] = useState<'pools' | 'cron' | 'agent' | 'launch' | 'terminal' | 'vault' | 'playbook' | 'bushido' | 'testing' | 'history'>('cron');
   const [tradeLogs, setTradeLogs] = useState<TradeLog[]>(generateInitialTradeLogs);
   const [network, setNetwork] = useState<'mainnet' | 'sepolia'>('mainnet');
   const [simulatedEthBalance, setSimulatedEthBalance] = useState(10.0); // Starts with 10 simulated ETH
+  const [isWeb3ModalOpen, setIsWeb3ModalOpen] = useState(false);
   const [showToadSplash, setShowToadSplash] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('toad_gang_dismissed') !== 'true';
@@ -120,17 +128,18 @@ export default function App() {
     return true;
   });
 
-  // Base SDK real-time network latency and authentication status
+  // Base SDK real-time network latency, gas price, and authentication status
   const [latency, setLatency] = useState<number | null>(null);
+  const [gasPriceGwei, setGasPriceGwei] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [basename, setBasename] = useState<string | null>(null);
   const [isCoinbaseVerified, setIsCoinbaseVerified] = useState(false);
   const [realBalance, setRealBalance] = useState<string | null>(null);
 
-  // Periodically measure Base RPC latency using real on-chain fetch
+  // Periodically measure Base RPC latency and fetch real-time Gas Price (eth_gasPrice)
   useEffect(() => {
     let active = true;
-    const measureLatency = async () => {
+    const measureNetworkMetrics = async () => {
       const rpcUrl = network === 'sepolia' ? 'https://sepolia.base.org' : 'https://mainnet.base.org';
       const start = performance.now();
       try {
@@ -149,10 +158,20 @@ export default function App() {
           setLatency(null);
         }
       }
+
+      // Fetch real-time gas price via backend server eth_gasPrice endpoint
+      try {
+        const gasData = await apiService.getGasPrice();
+        if (active && gasData?.gasPriceGweiFormatted) {
+          setGasPriceGwei(gasData.gasPriceGweiFormatted);
+        }
+      } catch (err) {
+        console.warn('Gas price fetch failed:', err);
+      }
     };
 
-    measureLatency();
-    const interval = setInterval(measureLatency, 6000); // Check every 6 seconds
+    measureNetworkMetrics();
+    const interval = setInterval(measureNetworkMetrics, 6000); // Check every 6 seconds
     return () => {
       active = false;
       clearInterval(interval);
@@ -489,10 +508,13 @@ export default function App() {
           {/* Web3 Wallet and Real-time Network Latency Indicator via Base SDK */}
           <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
             
-            {/* Real-time Network Latency Indicator via Base SDK */}
-            <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-900/80" title="Base RPC Latency via Base SDK">
-              <Server className="h-3.5 w-3.5 text-slate-500" />
+            {/* Real-time Network Latency & Estimated Gas Price (Gwei) via Base RPC */}
+            <div 
+              className="flex items-center gap-2.5 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-900/80 shadow-sm" 
+              title={`Base RPC Latency: ${latency !== null ? `${latency}ms` : 'Measuring...'} • Estimated Gas: ${gasPriceGwei ? `${gasPriceGwei} Gwei` : 'Fetching...'}`}
+            >
               <div className="flex items-center gap-1.5">
+                <Server className="h-3.5 w-3.5 text-slate-500" />
                 <span className="text-[10px] text-slate-400 font-bold">Node:</span>
                 {latency !== null ? (
                   <div className="flex items-center gap-1">
@@ -507,6 +529,24 @@ export default function App() {
                   <div className="flex items-center gap-1">
                     <RefreshCw className="h-3 w-3 animate-spin text-slate-600" />
                     <span className="text-slate-600">pinging...</span>
+                  </div>
+                )}
+              </div>
+
+              <span className="text-slate-800 font-light select-none">|</span>
+
+              {/* Real-time Estimated Gas Price (Gwei) */}
+              <div className="flex items-center gap-1.5" title="Base L2 Real-time Estimated Gas Price (Gwei) via eth_gasPrice">
+                <Fuel className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-[10px] text-slate-400 font-bold">Gas:</span>
+                {gasPriceGwei ? (
+                  <span className="font-mono font-black text-amber-400">
+                    {gasPriceGwei} <span className="text-[10px] text-amber-500/80 font-normal">Gwei</span>
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-1 text-slate-500">
+                    <RefreshCw className="h-2.5 w-2.5 animate-spin text-slate-600" />
+                    <span className="text-[10px]">...</span>
                   </div>
                 )}
               </div>
@@ -525,9 +565,30 @@ export default function App() {
               </select>
             </div>
 
+            {/* Web3Modal Action Button */}
+            <button
+              onClick={() => setIsWeb3ModalOpen(true)}
+              className={`group relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-display font-black tracking-wide transition-all cursor-pointer shadow-lg active:scale-95 border ${
+                walletAddress 
+                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/40 shadow-emerald-950/30'
+                  : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 border-cyan-400/40 shadow-cyan-500/20'
+              }`}
+              title="Connect Web3 Wallet, Scan WalletConnect QR, or Debug Reown AppKit"
+            >
+              <Wallet className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
+              <span className="truncate">
+                {walletAddress ? 'Web3 Connected' : 'Reown / Web3Modal'}
+              </span>
+              <span className={`w-1.5 h-1.5 rounded-full ${walletAddress ? 'bg-emerald-400' : 'bg-slate-950'} animate-pulse`} />
+            </button>
+
             {/* Wallet Authentication Status Indicator */}
             {walletAddress ? (
-              <div className="flex items-center gap-2.5 bg-emerald-950/20 border border-emerald-900/50 px-3.5 py-1.5 rounded-lg relative overflow-hidden">
+              <div 
+                onClick={() => setIsWeb3ModalOpen(true)}
+                className="flex items-center gap-2.5 bg-emerald-950/20 border border-emerald-900/50 px-3.5 py-1.5 rounded-lg relative overflow-hidden cursor-pointer hover:border-emerald-500/60 transition-all"
+                title="Click to view Web3 details or sign mandate"
+              >
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent animate-pulse" />
                 <Wallet className="h-3.5 w-3.5 text-emerald-400" />
                 
@@ -559,7 +620,11 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2.5 bg-slate-950 px-3.5 py-1.5 rounded-lg border border-slate-900">
+              <div 
+                onClick={() => setIsWeb3ModalOpen(true)}
+                className="flex items-center gap-2.5 bg-slate-950 px-3.5 py-1.5 rounded-lg border border-slate-900 cursor-pointer hover:border-slate-800 transition-all"
+                title="Click to connect Web3 wallet via Web3Modal"
+              >
                 <Wallet className="h-3.5 w-3.5 text-amber-500/90" />
                 <span className="text-slate-400 font-semibold">Simulated:</span>
                 <span className="text-amber-500/90 font-bold">0xBushidoWarrior</span>
@@ -568,7 +633,10 @@ export default function App() {
                 <div className="border-l border-slate-900 pl-2.5 flex items-center gap-1.5">
                   <span className="text-cyan-400 font-bold">{simulatedEthBalance.toFixed(3)} ETH</span>
                   <button 
-                    onClick={handleResetEth} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleResetEth();
+                    }} 
                     title="Replenish simulated wallet balance to 10.0 ETH"
                     className="text-slate-500 hover:text-red-400 transition-colors p-0.5 hover:bg-slate-900 rounded"
                   >
@@ -657,6 +725,21 @@ export default function App() {
           </div>
           <button
             type="button"
+            onClick={() => setActiveTab('cron')}
+            className={`py-3 px-5 text-xs font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'cron'
+                ? 'border-amber-500 text-amber-400 bg-amber-500/5 glow-gold'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Clock className="h-4 w-4 text-amber-400" />
+            <span>Daily Stablecoin Swap</span>
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold">
+              0.05 $USDC
+            </span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('launch')}
             className={`py-3 px-5 text-xs font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${
               activeTab === 'launch'
@@ -717,6 +800,18 @@ export default function App() {
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab('agent')}
+            className={`py-3 px-5 text-xs font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'agent'
+                ? 'border-amber-500 text-amber-400 bg-amber-500/5 glow-gold'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Bot className="h-4 w-4 text-amber-400" />
+            Druckenmiller Agent
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('bushido')}
             className={`py-3 px-5 text-xs font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${
               activeTab === 'bushido'
@@ -761,6 +856,10 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'cron' && (
+            <DailyStablecoinCronJob />
+          )}
+
           {activeTab === 'launch' && (
             <LaunchForm 
               onCoinCreated={handleCoinCreated} 
@@ -792,6 +891,21 @@ export default function App() {
 
           {activeTab === 'playbook' && (
             <AndroidGuide />
+          )}
+
+          {activeTab === 'agent' && (
+            <DruckenmillerAgentPlatform
+              userBalanceEth={walletAddress && realBalance ? parseFloat(realBalance) : simulatedEthBalance}
+              onUpdateBalance={(bal) => {
+                setSimulatedEthBalance(bal);
+                if (walletAddress) {
+                  setRealBalance(bal.toFixed(4));
+                }
+              }}
+              network={network}
+              onOpenWeb3Modal={() => setIsWeb3ModalOpen(true)}
+              walletAddress={walletAddress}
+            />
           )}
 
           {activeTab === 'bushido' && (
@@ -840,6 +954,26 @@ export default function App() {
           }} 
         />
       )}
+
+      {/* Web3Modal Dialog */}
+      <Web3Modal
+        isOpen={isWeb3ModalOpen}
+        onClose={() => setIsWeb3ModalOpen(false)}
+        onConnect={(addr, _chainId, bal) => {
+          setWalletAddress(addr);
+          setRealBalance(bal);
+          setSimulatedEthBalance(parseFloat(bal) || 4.2045);
+        }}
+        onDisconnect={() => {
+          setWalletAddress(null);
+          setBasename(null);
+          setIsCoinbaseVerified(false);
+          setRealBalance(null);
+        }}
+        connectedAddress={walletAddress}
+        network={network}
+        onSwitchNetwork={setNetwork}
+      />
 
     </div>
   );
