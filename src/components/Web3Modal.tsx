@@ -66,6 +66,27 @@ export default function Web3Modal({
   const [delegationSigned, setDelegationSigned] = useState(false);
   const [signatureHash, setSignatureHash] = useState<string | null>(null);
 
+  // Sync active view when modal opens or address changes
+  useEffect(() => {
+    if (isOpen) {
+      setActiveView(activeAddress ? 'account' : 'connect');
+      loadReownStatus();
+    }
+  }, [isOpen, activeAddress]);
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Reown / WalletConnect Project ID & Diagnostics State
   const [reownProjectId, setReownProjectId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -97,12 +118,6 @@ export default function Web3Modal({
       setIsTestingReown(false);
     }
   };
-
-  useEffect(() => {
-    if (isOpen) {
-      loadReownStatus();
-    }
-  }, [isOpen]);
 
   const handleSwitchProjectId = async () => {
     if (!customProjectIdInput.trim()) return;
@@ -254,7 +269,10 @@ export default function Web3Modal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+      onClick={onClose}
+    >
       <div 
         className="relative w-full max-w-md bg-slate-950 border border-slate-800 rounded-3xl shadow-2xl shadow-cyan-950/40 overflow-hidden text-slate-100"
         onClick={(e) => e.stopPropagation()}
@@ -287,27 +305,52 @@ export default function Web3Modal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-full text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* View Selection Tabs */}
-        <div className="flex border-b border-slate-800/80 bg-slate-950/80 px-4 text-xs font-semibold">
-          <button
-            onClick={() => setActiveView(currentAddress ? 'account' : 'connect')}
-            className={`py-2.5 px-3 border-b-2 transition-colors ${
-              activeView === 'connect' || activeView === 'account'
-                ? 'border-cyan-400 text-cyan-300'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {currentAddress ? 'Account' : 'Connect Wallet'}
-          </button>
+        <div className="flex border-b border-slate-800/80 bg-slate-950/80 px-4 text-xs font-semibold overflow-x-auto">
+          {activeAddress ? (
+            <>
+              <button
+                onClick={() => setActiveView('account')}
+                className={`py-2.5 px-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+                  activeView === 'account'
+                    ? 'border-cyan-400 text-cyan-300'
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Account
+              </button>
+              <button
+                onClick={() => setActiveView('connect')}
+                className={`py-2.5 px-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+                  activeView === 'connect'
+                    ? 'border-cyan-400 text-cyan-300'
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Switch Wallet
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setActiveView('connect')}
+              className={`py-2.5 px-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+                activeView === 'connect'
+                  ? 'border-cyan-400 text-cyan-300'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Connect Wallet
+            </button>
+          )}
           <button
             onClick={() => setActiveView('networks')}
-            className={`py-2.5 px-3 border-b-2 transition-colors flex items-center gap-1.5 ${
+            className={`py-2.5 px-3 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeView === 'networks'
                 ? 'border-cyan-400 text-cyan-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -318,7 +361,7 @@ export default function Web3Modal({
           </button>
           <button
             onClick={() => setActiveView('reown')}
-            className={`py-2.5 px-3 border-b-2 transition-colors flex items-center gap-1.5 ${
+            className={`py-2.5 px-3 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeView === 'reown'
                 ? 'border-cyan-400 text-cyan-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -327,10 +370,10 @@ export default function Web3Modal({
             <Terminal className="w-3.5 h-3.5" />
             Reown Debug
           </button>
-          {currentAddress && (
+          {activeAddress && (
             <button
               onClick={() => setActiveView('signature')}
-              className={`py-2.5 px-3 border-b-2 transition-colors flex items-center gap-1.5 ${
+              className={`py-2.5 px-3 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeView === 'signature'
                   ? 'border-amber-400 text-amber-300'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -345,10 +388,28 @@ export default function Web3Modal({
         {/* Modal Body */}
         <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
           {/* VIEW: CONNECT WALLET */}
-          {activeView === 'connect' && !currentAddress && (
+          {activeView === 'connect' && (
             <div className="space-y-3">
+              {activeAddress && (
+                <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-slate-300">
+                      Connected: <span className="font-mono text-emerald-300 font-bold">{activeAddress.slice(0, 6)}...{activeAddress.slice(-4)}</span>
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setActiveView('account')}
+                    className="text-[11px] font-mono text-cyan-400 hover:underline cursor-pointer"
+                  >
+                    View Account →
+                  </button>
+                </div>
+              )}
               <p className="text-xs text-slate-400">
-                Connect your preferred Web3 wallet to interact with Bushido liquidity pools and the Stanley Druckenmiller AI Agent.
+                {activeAddress 
+                  ? 'Select a provider below to switch wallet or scan WalletConnect QR code:'
+                  : 'Connect your preferred Web3 wallet to interact with Bushido liquidity pools and the Stanley Druckenmiller AI Agent.'}
               </p>
 
               <div className="space-y-2">
@@ -424,18 +485,18 @@ export default function Web3Modal({
           )}
 
           {/* VIEW: ACCOUNT */}
-          {activeView === 'account' && currentAddress && (
+          {activeView === 'account' && activeAddress && (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-amber-500 flex items-center justify-center font-bold text-xs text-slate-950">
-                      {currentAddress.slice(2, 4).toUpperCase()}
+                      {activeAddress.slice(2, 4).toUpperCase()}
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono text-sm font-bold text-slate-100">
-                          {currentAddress.slice(0, 6)}...{currentAddress.slice(-4)}
+                          {activeAddress.slice(0, 6)}...{activeAddress.slice(-4)}
                         </span>
                         {isCoinbaseVerified && (
                           <ShieldCheck className="w-4 h-4 text-emerald-400" title="Coinbase Verified Account" />
@@ -459,7 +520,7 @@ export default function Web3Modal({
 
                 <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
                   <button
-                    onClick={() => handleCopy(currentAddress)}
+                    onClick={() => handleCopy(activeAddress)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-xs text-slate-200 transition-colors"
                   >
                     {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -467,7 +528,7 @@ export default function Web3Modal({
                   </button>
 
                   <a
-                    href={`https://${network === 'sepolia' ? 'sepolia.' : ''}basescan.org/address/${currentAddress}`}
+                    href={`https://${network === 'sepolia' ? 'sepolia.' : ''}basescan.org/address/${activeAddress}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-xs text-slate-200 transition-colors"
@@ -507,16 +568,26 @@ export default function Web3Modal({
                 )}
               </div>
 
-              {/* Disconnect Action */}
-              <button
-                onClick={() => {
-                  onDisconnect();
-                  setActiveView('connect');
-                }}
-                className="w-full py-2.5 px-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold text-xs transition-colors cursor-pointer"
-              >
-                Disconnect Wallet
-              </button>
+              {/* Account Actions Grid */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  onClick={() => setActiveView('connect')}
+                  className="py-2.5 px-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs transition-colors cursor-pointer text-center"
+                >
+                  Switch Provider
+                </button>
+                <button
+                  onClick={() => {
+                    onDisconnect();
+                    setDelegationSigned(false);
+                    setSignatureHash(null);
+                    setActiveView('connect');
+                  }}
+                  className="py-2.5 px-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold text-xs transition-colors cursor-pointer text-center"
+                >
+                  Disconnect Wallet
+                </button>
+              </div>
             </div>
           )}
 

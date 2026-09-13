@@ -211,6 +211,17 @@ app.get('/api/cron/jobs', (_req: Request, res: Response) => {
   }
 });
 
+app.get('/api/cron/history', (req: Request, res: Response) => {
+  try {
+    const jobId = (req.query.jobId as string) || 'daily-stablecoin-basket';
+    const limit = parseInt((req.query.limit as string) || '50', 10);
+    const data = cronService.getExecutionHistory(jobId, limit);
+    res.json({ success: true, ...data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post('/api/cron/trigger', async (req: Request, res: Response) => {
   try {
     const { jobId = 'daily-stablecoin-basket' } = req.body;

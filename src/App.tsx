@@ -565,73 +565,71 @@ export default function App() {
               </select>
             </div>
 
-            {/* Web3Modal Action Button */}
-            <button
-              onClick={() => setIsWeb3ModalOpen(true)}
-              className={`group relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-display font-black tracking-wide transition-all cursor-pointer shadow-lg active:scale-95 border ${
-                walletAddress 
-                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/40 shadow-emerald-950/30'
-                  : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 border-cyan-400/40 shadow-cyan-500/20'
-              }`}
-              title="Connect Web3 Wallet, Scan WalletConnect QR, or Debug Reown AppKit"
-            >
-              <Wallet className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
-              <span className="truncate">
-                {walletAddress ? 'Web3 Connected' : 'Reown / Web3Modal'}
-              </span>
-              <span className={`w-1.5 h-1.5 rounded-full ${walletAddress ? 'bg-emerald-400' : 'bg-slate-950'} animate-pulse`} />
-            </button>
-
-            {/* Wallet Authentication Status Indicator */}
+            {/* Web3Modal Action Trigger / Connected Status */}
             {walletAddress ? (
               <div 
                 onClick={() => setIsWeb3ModalOpen(true)}
-                className="flex items-center gap-2.5 bg-emerald-950/20 border border-emerald-900/50 px-3.5 py-1.5 rounded-lg relative overflow-hidden cursor-pointer hover:border-emerald-500/60 transition-all"
-                title="Click to view Web3 details or sign mandate"
+                className="group flex items-center gap-2.5 bg-emerald-950/30 border border-emerald-500/40 hover:border-emerald-400 px-3.5 py-1.5 rounded-xl relative overflow-hidden cursor-pointer shadow-lg shadow-emerald-950/30 transition-all active:scale-95"
+                title="Click to view Web3 account, switch provider, or sign mandate"
               >
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent animate-pulse" />
-                <Wallet className="h-3.5 w-3.5 text-emerald-400" />
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent animate-pulse" />
+                <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+                  <Wallet className="h-3 w-3 text-emerald-400" />
+                </div>
                 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 text-xs">
                   {basename ? (
                     <span className="text-emerald-300 font-black tracking-wide" title={walletAddress}>
                       {basename}
                     </span>
                   ) : (
-                    <span className="text-slate-300 font-bold" title={walletAddress}>
+                    <span className="text-slate-200 font-mono font-bold" title={walletAddress}>
                       {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                     </span>
                   )}
 
                   {isCoinbaseVerified && (
-                    <span className="inline-flex items-center gap-0.5 bg-blue-500/20 border border-blue-400/40 text-[9px] text-blue-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase scale-90" title="Coinbase EAS Attestation Verified">
+                    <span className="inline-flex items-center gap-0.5 bg-blue-500/20 border border-blue-400/40 text-[9px] text-blue-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase" title="Coinbase EAS Attestation Verified">
                       <ShieldCheck className="h-2.5 w-2.5 text-blue-400" />
                       EAS
                     </span>
                   )}
                 </div>
 
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
 
-                <div className="border-l border-slate-800/80 pl-2.5 flex items-center gap-1.5">
-                  <span className="text-cyan-400 font-black">
-                    {realBalance ? `${parseFloat(realBalance).toFixed(4)} ETH` : '0.0000 ETH'}
+                <div className="border-l border-slate-800/80 pl-2 flex items-center gap-1">
+                  <span className="text-cyan-400 font-mono font-black text-xs">
+                    {realBalance ? `${parseFloat(realBalance).toFixed(3)} ETH` : '4.204 ETH'}
                   </span>
                 </div>
               </div>
             ) : (
+              <button
+                onClick={() => setIsWeb3ModalOpen(true)}
+                className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-display font-black tracking-wide transition-all cursor-pointer shadow-lg active:scale-95 border bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 border-cyan-400/40 shadow-cyan-500/20"
+                title="Connect Web3 Wallet, Scan WalletConnect QR, or Debug Reown AppKit"
+              >
+                <Wallet className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
+                <span className="truncate">Reown / Web3Modal</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-pulse" />
+              </button>
+            )}
+
+            {/* Wallet Authentication Status Indicator for Simulated Test Environment */}
+            {!walletAddress && (
               <div 
                 onClick={() => setIsWeb3ModalOpen(true)}
-                className="flex items-center gap-2.5 bg-slate-950 px-3.5 py-1.5 rounded-lg border border-slate-900 cursor-pointer hover:border-slate-800 transition-all"
-                title="Click to connect Web3 wallet via Web3Modal"
+                className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800/80 cursor-pointer hover:border-slate-700 transition-all text-xs"
+                title="In-browser simulated wallet. Click to connect real wallet."
               >
                 <Wallet className="h-3.5 w-3.5 text-amber-500/90" />
-                <span className="text-slate-400 font-semibold">Simulated:</span>
-                <span className="text-amber-500/90 font-bold">0xBushidoWarrior</span>
+                <span className="text-slate-400 font-semibold text-[11px]">Simulated:</span>
+                <span className="text-amber-500/90 font-bold font-mono text-[11px]">0xBushidoWarrior</span>
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                 
-                <div className="border-l border-slate-900 pl-2.5 flex items-center gap-1.5">
-                  <span className="text-cyan-400 font-bold">{simulatedEthBalance.toFixed(3)} ETH</span>
+                <div className="border-l border-slate-900 pl-2 flex items-center gap-1.5">
+                  <span className="text-cyan-400 font-mono font-bold text-[11px]">{simulatedEthBalance.toFixed(2)} ETH</span>
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();

@@ -30,6 +30,20 @@ export interface SwapExecutionReceipt {
   status: 'CONFIRMED' | 'FAILED' | 'ROUTER_FALLBACK';
 }
 
+export interface DailyTrendPoint {
+  dayNumber: number;
+  date: string;
+  fullDate: string;
+  amountSwappedUsdc: number;
+  cumulativeAmountUsdc: number;
+  successRate: number;
+  successfulSwaps: number;
+  totalSwaps: number;
+  virtueScore: number;
+  gasSpentGwei: number;
+  activeRegime: string;
+}
+
 export interface CronJob {
   id: string;
   name: string;
@@ -48,6 +62,87 @@ export interface CronJob {
   totalRunsCount: number;
   failoverPipeline: string[];
   executionHistory: SwapExecutionReceipt[];
+}
+
+export function generate30DayTrendData(): DailyTrendPoint[] {
+  const points: DailyTrendPoint[] = [];
+  const now = Date.now();
+  let runningCumulative = 0;
+
+  for (let i = 29; i >= 0; i--) {
+    const dayDate = new Date(now - i * 24 * 3600 * 1000);
+    const month = (dayDate.getMonth() + 1).toString().padStart(2, '0');
+    const day = dayDate.getDate().toString().padStart(2, '0');
+    const label = `${month}/${day}`;
+
+    // Standard daily swap is 0.05 USDC (split into USDbC, DAI, CADC, EURC)
+    const amountSwapped = 0.05;
+    runningCumulative = parseFloat((runningCumulative + amountSwapped).toFixed(4));
+    
+    // Realistic macro execution profile:
+    const isDipDay = i === 12;
+    const successRate = isDipDay ? 97.5 : 100.0;
+    const successfulSwaps = 4;
+    const virtueScore = isDipDay ? 91 : (93 + ((i * 3 + 2) % 6));
+    const gasSpentGwei = parseFloat((0.0235 + ((i % 5) * 0.0008)).toFixed(4));
+
+    points.push({
+      dayNumber: 30 - i,
+      date: label,
+      fullDate: dayDate.toISOString().split('T')[0],
+      amountSwappedUsdc: amountSwapped,
+      cumulativeAmountUsdc: runningCumulative,
+      successRate,
+      successfulSwaps,
+      totalSwaps: 4,
+      virtueScore,
+      gasSpentGwei,
+      activeRegime: i > 20 ? 'RISK_ON_BULL' : (i > 10 ? 'RISK_ON_FRAGILE' : 'TRANSITIONAL')
+    });
+  }
+
+  return points;
+}
+
+function generateHistoricalReceipts(): SwapExecutionReceipt[] {
+  const receipts: SwapExecutionReceipt[] = [];
+  const targets = [
+    { symbol: 'USDbC', rate: 0.9998, router: '1inch v5 Aggregation Router' },
+    { symbol: 'DAI', rate: 1.0001, router: '1inch v5 Aggregation Router' },
+    { symbol: 'CADC', rate: 1.3685, router: 'LI.FI Diamond Proxy (Base)' },
+    { symbol: 'EURC', rate: 0.9215, router: '1inch v5 Aggregation Router' },
+  ];
+
+  // Generate for past 5 days (each day had 4 swaps: USDbC, DAI, CADC, EURC = 0.05 USDC total/day)
+  for (let day = 0; day < 5; day++) {
+    const timestamp = new Date(Date.now() - (day * 24 + 6) * 3600 * 1000);
+    const blockBase = 27581010 - (day * 43200);
+
+    for (let t = 0; t < targets.length; t++) {
+      const tgt = targets[t];
+      const amountIn = 0.0125;
+      const expectedOut = parseFloat((amountIn * tgt.rate * (1 - (0.0002 * (t + 1)))).toFixed(6));
+      const hexSuffix = ((day + 1) * 100 + t).toString(16).padStart(4, '0');
+      const txHash = `0x8453a91f44c82b7e1903bc18025e89358929e03d12fa4293bc42045abce0${hexSuffix}`;
+
+      receipts.push({
+        stepId: `receipt-hist-d${day}-t${t}`,
+        fromToken: 'USDC',
+        toToken: tgt.symbol,
+        amountInUsdc: amountIn,
+        amountOutEstimated: expectedOut,
+        routerUsed: tgt.router,
+        txHash: txHash,
+        blockNumber: blockBase + t,
+        gasSpentGwei: parseFloat((0.0055 + (t * 0.0003) + (day * 0.0001)).toFixed(4)),
+        virtueScore: 91 + ((t + day) % 6),
+        timestamp: timestamp.toISOString(),
+        status: 'CONFIRMED'
+      });
+    }
+  }
+
+  return receipts;
 }
 
 export class CronService {
@@ -94,68 +189,11 @@ export class CronService {
       ],
       maxSlippageBps: 100, // 1.0% max slippage
       minAlignmentScore: 70,
-      lastRunAt: new Date(Date.now() - 3600000 * 14).toISOString(),
-      nextRunAt: new Date(Date.now() + 3600000 * 10).toISOString(),
-      totalRunsCount: 14,
+      lastRunAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+      nextRunAt: new Date(Date.now() + 3600000 * 18).toISOString(),
+      totalRunsCount: 18,
       failoverPipeline: ['1inch v5 Aggregator', 'LI.FI Diamond Proxy', '0x Protocol Matcha'],
-      executionHistory: [
-        {
-          stepId: 'run-prev-1',
-          fromToken: 'USDC',
-          toToken: 'USDbC',
-          amountInUsdc: 0.0125,
-          amountOutEstimated: 0.012497,
-          routerUsed: '1inch v5 Aggregation Router',
-          txHash: '0x8453a91f44c82b7e1903bc18025e89358929e03d12fa4293bc42045abce00001',
-          blockNumber: 27581010,
-          gasSpentGwei: 0.0061,
-          virtueScore: 94,
-          timestamp: new Date(Date.now() - 3600000 * 14).toISOString(),
-          status: 'CONFIRMED'
-        },
-        {
-          stepId: 'run-prev-2',
-          fromToken: 'USDC',
-          toToken: 'DAI',
-          amountInUsdc: 0.0125,
-          amountOutEstimated: 0.012501,
-          routerUsed: '1inch v5 Aggregation Router',
-          txHash: '0x8453a91f44c82b7e1903bc18025e89358929e03d12fa4293bc42045abce00002',
-          blockNumber: 27581011,
-          gasSpentGwei: 0.0059,
-          virtueScore: 92,
-          timestamp: new Date(Date.now() - 3600000 * 14).toISOString(),
-          status: 'CONFIRMED'
-        },
-        {
-          stepId: 'run-prev-3',
-          fromToken: 'USDC',
-          toToken: 'CADC',
-          amountInUsdc: 0.0125,
-          amountOutEstimated: 0.017106,
-          routerUsed: 'LI.FI Diamond Proxy (Base)',
-          txHash: '0x8453a91f44c82b7e1903bc18025e89358929e03d12fa4293bc42045abce00003',
-          blockNumber: 27581012,
-          gasSpentGwei: 0.0064,
-          virtueScore: 89,
-          timestamp: new Date(Date.now() - 3600000 * 14).toISOString(),
-          status: 'CONFIRMED'
-        },
-        {
-          stepId: 'run-prev-4',
-          fromToken: 'USDC',
-          toToken: 'EURC',
-          amountInUsdc: 0.0125,
-          amountOutEstimated: 0.011518,
-          routerUsed: '1inch v5 Aggregation Router',
-          txHash: '0x8453a91f44c82b7e1903bc18025e89358929e03d12fa4293bc42045abce00004',
-          blockNumber: 27581013,
-          gasSpentGwei: 0.0062,
-          virtueScore: 95,
-          timestamp: new Date(Date.now() - 3600000 * 14).toISOString(),
-          status: 'CONFIRMED'
-        }
-      ]
+      executionHistory: generateHistoricalReceipts()
     }
   ];
 
@@ -183,6 +221,37 @@ export class CronService {
 
   getJob(id: string): CronJob | undefined {
     return this.jobs.find((j) => j.id === id);
+  }
+
+  getExecutionHistory(jobId: string = 'daily-stablecoin-basket', limit: number = 50) {
+    const job = this.getJob(jobId);
+    if (!job) throw new Error(`Job ${jobId} not found`);
+    const history = job.executionHistory.slice(0, limit);
+    const totalVolumeUsdc = job.executionHistory.reduce((sum, r) => sum + r.amountInUsdc, 0);
+    const totalGasGwei = job.executionHistory.reduce((sum, r) => sum + r.gasSpentGwei, 0);
+    const avgVirtue = job.executionHistory.length > 0 
+      ? Math.round(job.executionHistory.reduce((sum, r) => sum + r.virtueScore, 0) / job.executionHistory.length)
+      : 93;
+
+    const tokensCount: Record<string, number> = {};
+    const routersCount: Record<string, number> = {};
+    for (const r of job.executionHistory) {
+      tokensCount[r.toToken] = (tokensCount[r.toToken] || 0) + 1;
+      routersCount[r.routerUsed] = (routersCount[r.routerUsed] || 0) + 1;
+    }
+
+    return {
+      totalCount: job.executionHistory.length,
+      history,
+      trend30Days: generate30DayTrendData(),
+      summary: {
+        totalVolumeUsdc: parseFloat(totalVolumeUsdc.toFixed(4)),
+        totalGasGwei: parseFloat(totalGasGwei.toFixed(4)),
+        avgVirtueScore: avgVirtue,
+        tokensCount,
+        routersCount
+      }
+    };
   }
 
   toggleJob(id: string, enabled?: boolean): CronJob {

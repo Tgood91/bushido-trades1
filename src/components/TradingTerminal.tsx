@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Coin, TradeLog, CoinFees } from '../types';
 import { simulateSwap, formatAmount, formatPrice, formatAddress } from '../utils';
+import { apiService } from '../services/api';
 import { 
   ArrowDownUp, 
   TrendingUp, 
@@ -16,7 +17,17 @@ import {
   CheckCircle,
   ExternalLink,
   ChevronRight,
-  Sword
+  Sword,
+  AlertTriangle,
+  Fuel,
+  Sliders,
+  PauseCircle,
+  PlayCircle,
+  RefreshCw,
+  Flame,
+  ShieldAlert,
+  SlidersHorizontal,
+  X
 } from 'lucide-react';
 
 interface TradingTerminalProps {
@@ -24,13 +35,15 @@ interface TradingTerminalProps {
   onTradeExecuted: (updatedCoin: Coin, log: TradeLog) => void;
   simulatedEthBalance: number;
   onUpdateEthBalance: (newBalance: number) => void;
+  currentGasPriceGwei?: string | number;
 }
 
 export default function TradingTerminal({ 
   coin, 
   onTradeExecuted, 
   simulatedEthBalance,
-  onUpdateEthBalance 
+  onUpdateEthBalance,
+  currentGasPriceGwei
 }: TradingTerminalProps) {
   if (!coin) {
     return (
@@ -51,6 +64,92 @@ export default function TradingTerminal({
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(500);
+
+  // Gas Price & Slippage Alert States
+  const [liveGasGwei, setLiveGasGwei] = useState<number>(() => {
+    if (currentGasPriceGwei) {
+      const parsed = parseFloat(String(currentGasPriceGwei));
+      return isNaN(parsed) ? 0.006 : parsed;
+    }
+    return 0.006;
+  });
+  const [simulatedGasSpike, setSimulatedGasSpike] = useState<number | null>(null);
+  const [slippageTolerance, setSlippageTolerance] = useState<number>(0.5); // Default 0.5%
+  const [showSlippageConfig, setShowSlippageConfig] = useState<boolean>(false);
+  const [isSwapDelayed, setIsSwapDelayed] = useState<boolean>(false);
+  const [delayCountdown, setDelayCountdown] = useState<number>(30); // 30s pause timer
+  const [userBypassedGasWarning, setUserBypassedGasWarning] = useState<boolean>(false);
+  const [customSlippageInput, setCustomSlippageInput] = useState<string>('0.5');
+
+  // Compute active gas price
+  const gasPrice = simulatedGasSpike !== null ? simulatedGasSpike : liveGasGwei;
+  const isGasSpike = gasPrice > 5.0;
+
+  // Sync prop gas price if passed from App.tsx
+  useEffect(() => {
+    if (currentGasPriceGwei !== undefined && currentGasPriceGwei !== null) {
+      const val = parseFloat(String(currentGasPriceGwei));
+      if (!isNaN(val) && val > 0) {
+        setLiveGasGwei(val);
+      }
+    }
+  }, [currentGasPriceGwei]);
+
+  // Periodic poll of Base network gas price
+  useEffect(() => {
+    let isMounted = true;
+    const fetchGas = async () => {
+      try {
+        const gasData = await apiService.getGasPrice();
+        if (isMounted && gasData && typeof gasData.gasPriceGwei === 'number') {
+          setLiveGasGwei(gasData.gasPriceGwei);
+        }
+      } catch (err) {
+        // Fallback quiet catch
+      }
+    };
+
+    const interval = setInterval(fetchGas, 8000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Delay countdown effect when user chooses to delay swap
+  useEffect(() => {
+    if (!isSwapDelayed) return;
+
+    if (delayCountdown <= 0) {
+      // If gas cooled down below 5 Gwei, automatically unpause
+      if (gasPrice <= 5.0) {
+        setIsSwapDelayed(false);
+      }
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setDelayCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isSwapDelayed, delayCountdown, gasPrice]);
+
+  // If gas price drops below 5 Gwei, reset the bypassed warning
+  useEffect(() => {
+    if (!isGasSpike) {
+      setUserBypassedGasWarning(false);
+      if (isSwapDelayed) {
+        setIsSwapDelayed(false);
+      }
+    }
+  }, [isGasSpike, isSwapDelayed]);
 
   // Resize listener for SVG responsiveness
   useEffect(() => {
