@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Coin, TradeLog } from './types';
-import { generateInitialHistory, TOTAL_SUPPLY, POOL_ALLOCATION, CREATOR_ALLOCATION } from './utils';
+import { generateInitialHistory, generateInitialVolumeHistory, TOTAL_SUPPLY, POOL_ALLOCATION, CREATOR_ALLOCATION } from './utils';
 import { fetchOnchainIdentity } from './utils/baseSdk';
 import LaunchForm from './components/LaunchForm';
 import ActiveCoins from './components/ActiveCoins';
@@ -14,6 +14,7 @@ import TransactionHistory from './components/TransactionHistory';
 import Web3Modal from './components/Web3Modal';
 import DruckenmillerAgentPlatform from './components/DruckenmillerAgentPlatform';
 import DailyStablecoinCronJob from './components/DailyStablecoinCronJob';
+import ProtocolTooltip from './components/ProtocolTooltip';
 import { apiService } from './services/api';
 const bushidoIcon = '/src/assets/images/bushido_icon_1783540049716.jpg';
 import { 
@@ -258,6 +259,7 @@ export default function App() {
       currentPrice: 1.0 / POOL_ALLOCATION, // ~1.01e-9 ETH
       priceHistory: generateInitialHistory(1.0 / POOL_ALLOCATION, 15),
       volume24h: 1.25,
+      volumeHistory: generateInitialVolumeHistory(1.25, 24, 'gi-pool'),
       feesGenerated: {
         creator: 0.00625,
         platform: 0.0025,
@@ -287,6 +289,7 @@ export default function App() {
       currentPrice: 2.5 / POOL_ALLOCATION, // ~2.52e-9 ETH
       priceHistory: generateInitialHistory(2.5 / POOL_ALLOCATION, 15),
       volume24h: 4.80,
+      volumeHistory: generateInitialVolumeHistory(4.80, 24, 'yu-pool'),
       feesGenerated: {
         creator: 0.024,
         platform: 0.0096,
@@ -316,6 +319,7 @@ export default function App() {
       currentPrice: 0.5 / POOL_ALLOCATION, // ~5.05e-10 ETH
       priceHistory: generateInitialHistory(0.5 / POOL_ALLOCATION, 15),
       volume24h: 0.95,
+      volumeHistory: generateInitialVolumeHistory(0.95, 24, 'jin-pool'),
       feesGenerated: {
         creator: 0.00475,
         platform: 0.0019,
@@ -345,6 +349,7 @@ export default function App() {
       currentPrice: 1.8 / POOL_ALLOCATION, // ~1.81e-9 ETH
       priceHistory: generateInitialHistory(1.8 / POOL_ALLOCATION, 15),
       volume24h: 2.10,
+      volumeHistory: generateInitialVolumeHistory(2.10, 24, 'rei-pool'),
       feesGenerated: {
         creator: 0.0105,
         platform: 0.0042,
@@ -413,6 +418,13 @@ export default function App() {
         const incomingVol = Math.random() * 0.15;
         const newVol = coin.volume24h + incomingVol;
 
+        const lastVolPoint = coin.volumeHistory && coin.volumeHistory.length > 0
+          ? coin.volumeHistory[coin.volumeHistory.length - 1].volume
+          : (coin.volume24h / 24);
+        const updatedVolHistory = coin.volumeHistory && coin.volumeHistory.length > 0
+          ? [...coin.volumeHistory.slice(1), { timestamp: historyTime, volume: parseFloat((lastVolPoint + incomingVol * 0.4).toFixed(4)) }]
+          : generateInitialVolumeHistory(newVol, 24, coin.id);
+
         const creatorFee = incomingVol * 0.005;
         const platformFee = incomingVol * 0.002;
         const tradeRefFee = incomingVol * 0.0015;
@@ -424,6 +436,7 @@ export default function App() {
           currentPrice: finalPrice,
           priceHistory: finalHistory,
           volume24h: newVol,
+          volumeHistory: updatedVolHistory,
           poolEthBalance: Math.max(0.1, coin.poolEthBalance + (Math.random() * 0.04 - 0.02)),
           feesGenerated: {
             creator: coin.feesGenerated.creator + creatorFee,
@@ -496,9 +509,16 @@ export default function App() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-display font-black tracking-widest bg-gradient-to-r from-cyan-400 via-amber-400 to-red-500 bg-clip-text text-transparent">
-                  BUSHIDO 八徳
-                </h1>
+                <ProtocolTooltip
+                  version="v2.4.2-release"
+                  deploymentDate="September 14, 2026 • 14:30 UTC"
+                  network="Base L2 Mainnet"
+                  chainId={8453}
+                >
+                  <h1 className="text-xl font-display font-black tracking-widest bg-gradient-to-r from-cyan-400 via-amber-400 to-red-500 bg-clip-text text-transparent cursor-help hover:brightness-125 transition-all duration-200 select-none decoration-cyan-400/40 hover:underline underline-offset-4 decoration-dashed">
+                    BUSHIDO 八徳
+                  </h1>
+                </ProtocolTooltip>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider font-semibold">8 Virtues</span>
               </div>
               <p className="text-[10px] text-slate-400 font-jp tracking-wider">The Way of the Token: Honor, Rectitude & Hybrid ERC-20z</p>

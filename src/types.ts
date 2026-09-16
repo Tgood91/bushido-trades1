@@ -3,6 +3,11 @@ export interface PricePoint {
   price: number;
 }
 
+export interface VolumePoint {
+  timestamp: string;
+  volume: number;
+}
+
 export interface CoinFees {
   creator: number;
   platform: number;
@@ -30,6 +35,7 @@ export interface Coin {
   currentPrice: number; // in ETH per 1 Token
   priceHistory: PricePoint[];
   volume24h: number; // in ETH
+  volumeHistory?: VolumePoint[];
   feesGenerated: CoinFees;
   
   // Pools & Balances
@@ -63,3 +69,63 @@ export interface DeploymentStep {
   description: string;
   status: 'idle' | 'running' | 'completed' | 'failed';
 }
+
+// ==========================================
+// WALLET CONNECTION TYPES & SPECIFICATIONS
+// ==========================================
+
+export type WalletProviderId = 'coinbase' | 'metamask' | 'walletconnect' | 'rainbow' | 'safe' | 'injected';
+
+export type WalletConnectionType = 
+  | 'injected_eip1193'
+  | 'smart_wallet_passkey'
+  | 'walletconnect_v2'
+  | 'safe_multisig'
+  | 'simulated_ephemeral';
+
+export type WalletNetwork = 'mainnet' | 'sepolia';
+
+export type WalletConnectionStatus = 
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'switching_network'
+  | 'signing'
+  | 'error';
+
+export interface WalletProviderOption {
+  id: WalletProviderId;
+  name: string;
+  subtitle: string;
+  badge?: string;
+  icon: string;
+  color: string;
+  connectionType: WalletConnectionType;
+  protocolSpec: string;
+  rdns?: string;
+}
+
+export interface WalletConnectionSession {
+  providerId: WalletProviderId;
+  connectionType: WalletConnectionType;
+  address: string;
+  chainId: number;
+  network: WalletNetwork;
+  balanceEth: string;
+  basename?: string | null;
+  isCoinbaseVerified?: boolean;
+  connectedAt: string;
+  status: WalletConnectionStatus;
+}
+
+export interface WalletSignatureMandate {
+  account: string;
+  delegateAddress: string;
+  network: string;
+  maxSwapLimitPercent: number;
+  minVirtueScore: number;
+  timestamp: string;
+  signature?: string;
+  verified: boolean;
+}
+

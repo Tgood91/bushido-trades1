@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Coin, TradeLog, CoinFees } from '../types';
-import { simulateSwap, formatAmount, formatPrice, formatAddress } from '../utils';
+import { simulateSwap, formatAmount, formatPrice, formatAddress, generateInitialVolumeHistory } from '../utils';
 import { apiService } from '../services/api';
 import { 
   ArrowDownUp, 
@@ -238,6 +238,15 @@ export default function TradingTerminal({
     if (tradeType === 'BUY') {
       onUpdateEthBalance(simulatedEthBalance - parsedAmount);
       
+      const currentVolHist = coin.volumeHistory && coin.volumeHistory.length > 0
+        ? coin.volumeHistory
+        : generateInitialVolumeHistory(coin.volume24h, 24, coin.id);
+      const newVolPoint = {
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        volume: parseFloat(((currentVolHist[currentVolHist.length - 1]?.volume || 0.05) + parsedAmount).toFixed(4))
+      };
+      const updatedVolHist = [...currentVolHist.slice(1), newVolPoint];
+
       const updatedCoin: Coin = {
         ...coin,
         currentPrice: swapResult.newPrice,
@@ -249,6 +258,7 @@ export default function TradingTerminal({
           }
         ],
         volume24h: coin.volume24h + parsedAmount,
+        volumeHistory: updatedVolHist,
         feesGenerated: {
           creator: coin.feesGenerated.creator + swapResult.fees.creator,
           platform: coin.feesGenerated.platform + swapResult.fees.platform,
@@ -279,6 +289,15 @@ export default function TradingTerminal({
       // SELL
       onUpdateEthBalance(simulatedEthBalance + swapResult.ethOut);
 
+      const currentVolHist = coin.volumeHistory && coin.volumeHistory.length > 0
+        ? coin.volumeHistory
+        : generateInitialVolumeHistory(coin.volume24h, 24, coin.id);
+      const newVolPoint = {
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        volume: parseFloat(((currentVolHist[currentVolHist.length - 1]?.volume || 0.05) + swapResult.ethOut).toFixed(4))
+      };
+      const updatedVolHist = [...currentVolHist.slice(1), newVolPoint];
+
       const updatedCoin: Coin = {
         ...coin,
         currentPrice: swapResult.newPrice,
@@ -290,6 +309,7 @@ export default function TradingTerminal({
           }
         ],
         volume24h: coin.volume24h + swapResult.ethOut,
+        volumeHistory: updatedVolHist,
         feesGenerated: {
           creator: coin.feesGenerated.creator + swapResult.fees.creator,
           platform: coin.feesGenerated.platform + swapResult.fees.platform,

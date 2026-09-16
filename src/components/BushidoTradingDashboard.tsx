@@ -27,6 +27,7 @@ import {
   Sliders,
   Cpu
 } from 'lucide-react';
+import { WalletProviderId } from '../types';
 
 const BUSHIDO_ICON = '/src/assets/images/bushido_icon_1783540049716.jpg';
 const MOON_TOAD_ICON = '/src/assets/images/moon_toad_1783540752436.jpg';
@@ -51,7 +52,7 @@ export default function BushidoTradingDashboard({
   
   // Wallet Connection via SDK simulation states
   const [sdkConnected, setSdkConnected] = useState(false);
-  const [selectedWallet, setSelectedWallet] = useState<'coinbase' | 'metamask' | 'walletconnect'>('coinbase');
+  const [selectedWallet, setSelectedWallet] = useState<WalletProviderId>('coinbase');
   const [isConnecting, setIsConnecting] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
 
@@ -388,7 +389,7 @@ export default function BushidoTradingDashboard({
     return 'text-slate-400';
   };
 
-  const handleWalletConnect = async (walletType: 'coinbase' | 'metamask' | 'walletconnect') => {
+  const handleWalletConnect = async (walletType: WalletProviderId) => {
     setIsConnecting(true);
     setSelectedWallet(walletType);
     
@@ -553,9 +554,12 @@ export default function BushidoTradingDashboard({
   };
 
   const walletDisplayName = () => {
-    if (selectedWallet === 'coinbase') return 'Coinbase Wallet';
+    if (selectedWallet === 'coinbase') return 'Coinbase Smart Wallet (CDP)';
     if (selectedWallet === 'metamask') return 'MetaMask';
-    return 'WalletConnect';
+    if (selectedWallet === 'walletconnect') return 'WalletConnect v2';
+    if (selectedWallet === 'safe') return 'Safe Multi-Sig';
+    if (selectedWallet === 'rainbow') return 'Rainbow';
+    return 'Injected Wallet';
   };
 
   return (
@@ -686,9 +690,14 @@ export default function BushidoTradingDashboard({
 
                 {sdkConnected && (
                   <>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-slate-500">Active Wallet:</span>
-                      <span className="text-slate-200 font-semibold">{walletDisplayName()}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-200 font-semibold">{walletDisplayName()}</span>
+                        <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-300">
+                          {selectedWallet === 'coinbase' ? 'smart_wallet_passkey' : selectedWallet === 'metamask' ? 'injected_eip1193' : selectedWallet === 'safe' ? 'safe_multisig' : 'walletconnect_v2'}
+                        </code>
+                      </div>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Base Network:</span>
@@ -1206,37 +1215,52 @@ export default function BushidoTradingDashboard({
               <button
                 type="button"
                 onClick={() => handleWalletConnect('coinbase')}
-                className="w-full flex items-center justify-between p-3.5 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded-xl text-slate-200 text-xs font-bold transition-all cursor-pointer group"
+                className="w-full flex items-center justify-between p-3.5 bg-slate-950 hover:bg-slate-900 border border-blue-500/40 hover:border-blue-500/70 rounded-xl text-slate-200 text-xs font-bold transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="h-7 w-7 rounded bg-blue-600 flex items-center justify-center text-white font-mono font-black text-sm">C</div>
-                  <span>Coinbase Smart Wallet</span>
+                  <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-mono font-black text-sm shrink-0">C</div>
+                  <div className="text-left">
+                    <div className="flex items-center gap-1.5">
+                      <span>Coinbase Smart Wallet</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono font-bold">CDP OPTION</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-normal">Coinbase Developer Platform • Passkey & Gasless</p>
+                  </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
+                <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all shrink-0" />
               </button>
 
               <button
                 type="button"
                 onClick={() => handleWalletConnect('metamask')}
-                className="w-full flex items-center justify-between p-3.5 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded-xl text-slate-200 text-xs font-bold transition-all cursor-pointer group"
+                className="w-full flex items-center justify-between p-3.5 bg-slate-950 hover:bg-slate-900 border border-slate-900 hover:border-amber-500/40 rounded-xl text-slate-200 text-xs font-bold transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="h-7 w-7 rounded bg-amber-600 flex items-center justify-center text-white font-mono font-black text-sm">M</div>
-                  <span>MetaMask Wallet</span>
+                  <div className="h-8 w-8 rounded-lg bg-amber-600 flex items-center justify-center text-white font-mono font-black text-sm shrink-0">M</div>
+                  <div className="text-left">
+                    <span>MetaMask Wallet</span>
+                    <p className="text-[10px] text-slate-400 font-normal">Browser Extension & Mobile EIP-1193</p>
+                  </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
+                <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all shrink-0" />
               </button>
 
               <button
                 type="button"
                 onClick={() => handleWalletConnect('walletconnect')}
-                className="w-full flex items-center justify-between p-3.5 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded-xl text-slate-200 text-xs font-bold transition-all cursor-pointer group"
+                className="w-full flex items-center justify-between p-3.5 bg-slate-950 hover:bg-slate-900 border border-slate-900 hover:border-cyan-500/40 rounded-xl text-slate-200 text-xs font-bold transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="h-7 w-7 rounded bg-cyan-600 flex items-center justify-center text-white font-mono font-black text-sm">W</div>
-                  <span>WalletConnect v2</span>
+                  <div className="h-8 w-8 rounded-lg bg-cyan-600 flex items-center justify-center text-white font-mono font-black text-sm shrink-0">W</div>
+                  <div className="text-left">
+                    <div className="flex items-center gap-1.5">
+                      <span>WalletConnect v2</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">REOWN</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-normal">300+ Mobile Wallets & QR Relay</p>
+                  </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
+                <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all shrink-0" />
               </button>
             </div>
 

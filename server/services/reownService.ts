@@ -17,8 +17,8 @@ export interface ReownDiagnostics {
 }
 
 export class ReownService {
-  private defaultProjectId = 'b56e18d47c72ab683b10814fe9495694';
-  private currentProjectId = process.env.REOWN_PROJECT_ID || process.env.VITE_REOWN_PROJECT_ID || 'b56e18d47c72ab683b10814fe9495694';
+  private defaultProjectId = '8be604f433ed93bd593c6bb8f9021ae7';
+  private currentProjectId = process.env.REOWN_PROJECT_ID || process.env.VITE_REOWN_PROJECT_ID || '8be604f433ed93bd593c6bb8f9021ae7';
 
   getProjectId(): string {
     return this.currentProjectId;

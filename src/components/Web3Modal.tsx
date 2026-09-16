@@ -18,7 +18,11 @@ import {
   Sliders,
   Terminal,
   Activity,
-  AlertCircle
+  AlertCircle,
+  Code,
+  HelpCircle,
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
 import { 
   BASE_MAINNET_CHAIN_ID, 
@@ -27,6 +31,11 @@ import {
   verifyWeb3Signature
 } from '../utils/baseSdk';
 import { apiService } from '../services/api';
+import { 
+  WalletProviderId, 
+  WalletConnectionType, 
+  WalletProviderOption 
+} from '../types';
 
 const BUSHIDO_ICON = '/src/assets/images/bushido_icon_1783540049716.jpg';
 
@@ -58,9 +67,11 @@ export default function Web3Modal({
   onSwitchNetwork
 }: Web3ModalProps) {
   const activeAddress = currentAddress || connectedAddress || null;
-  const [activeView, setActiveView] = useState<'connect' | 'account' | 'networks' | 'signature' | 'reown'>('connect');
+  const [activeView, setActiveView] = useState<'connect' | 'account' | 'cdp' | 'networks' | 'signature' | 'reown' | 'types'>('connect');
   const [copied, setCopied] = useState(false);
-  const [connectingWallet, setConnectingWallet] = useState<string | null>(null);
+  const [connectingWallet, setConnectingWallet] = useState<WalletProviderId | null>(null);
+  const [selectedProviderId, setSelectedProviderId] = useState<WalletProviderId>('coinbase');
+  const [copiedTypes, setCopiedTypes] = useState(false);
   const [showQrCode, setShowQrCode] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [delegationSigned, setDelegationSigned] = useState(false);
@@ -90,9 +101,9 @@ export default function Web3Modal({
   // Reown / WalletConnect Project ID & Diagnostics State
   const [reownProjectId, setReownProjectId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('reown_project_id') || 'b56e18d47c72ab683b10814fe9495694';
+      return localStorage.getItem('reown_project_id') || '8be604f433ed93bd593c6bb8f9021ae7';
     }
-    return 'b56e18d47c72ab683b10814fe9495694';
+    return '8be604f433ed93bd593c6bb8f9021ae7';
   });
   const [customProjectIdInput, setCustomProjectIdInput] = useState('');
   const [reownDiag, setReownDiag] = useState<any | null>(null);
@@ -149,13 +160,13 @@ export default function Web3Modal({
   };
 
   const handleResetDefaultId = async () => {
-    const defaultId = 'b56e18d47c72ab683b10814fe9495694';
+    const defaultId = '8be604f433ed93bd593c6bb8f9021ae7';
     setReownProjectId(defaultId);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('reown_project_id');
     }
     await apiService.switchReownProjectId(defaultId);
-    setReownMsg({ text: 'Reset to default Reown Project ID.', type: 'success' });
+    setReownMsg({ text: 'Reset to default Reown Project ID (8be604f433ed93bd593c6bb8f9021ae7).', type: 'success' });
     await loadReownStatus(defaultId);
   };
 
@@ -167,8 +178,9 @@ export default function Web3Modal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleConnectProvider = async (walletId: string) => {
+  const handleConnectProvider = async (walletId: WalletProviderId) => {
     setConnectingWallet(walletId);
+    setSelectedProviderId(walletId);
     try {
       if (typeof window !== 'undefined' && (window as any).ethereum) {
         const accounts = await (window as any).ethereum.request({
@@ -225,14 +237,17 @@ export default function Web3Modal({
     }
   };
 
-  const wallets = [
+  const wallets: WalletProviderOption[] = [
     {
       id: 'coinbase',
-      name: 'Coinbase Wallet',
-      subtitle: 'Smart Wallet & Passkeys',
-      badge: 'RECOMMENDED',
+      name: 'Coinbase Smart Wallet (CDP)',
+      subtitle: 'Coinbase Developer Platform • Passkeys & Gasless',
+      badge: 'CDP OPTION',
       icon: '🔵',
-      color: 'border-blue-500/40 bg-blue-500/10'
+      color: 'border-blue-500/40 bg-blue-500/10',
+      connectionType: 'smart_wallet_passkey',
+      protocolSpec: 'CDP ERC-4337 / Passkey',
+      rdns: 'com.coinbase.wallet'
     },
     {
       id: 'metamask',
@@ -240,7 +255,10 @@ export default function Web3Modal({
       subtitle: 'Browser Extension & Mobile',
       badge: 'POPULAR',
       icon: '🦊',
-      color: 'border-amber-500/40 bg-amber-500/10'
+      color: 'border-amber-500/40 bg-amber-500/10',
+      connectionType: 'injected_eip1193',
+      protocolSpec: 'EIP-1193 / window.ethereum',
+      rdns: 'io.metamask'
     },
     {
       id: 'walletconnect',
@@ -248,7 +266,10 @@ export default function Web3Modal({
       subtitle: 'Scan with 300+ mobile wallets',
       badge: 'QR CODE',
       icon: '⚡',
-      color: 'border-cyan-500/40 bg-cyan-500/10'
+      color: 'border-cyan-500/40 bg-cyan-500/10',
+      connectionType: 'walletconnect_v2',
+      protocolSpec: 'WCP v2 / Relay Bridge',
+      rdns: 'org.walletconnect'
     },
     {
       id: 'rainbow',
@@ -256,7 +277,10 @@ export default function Web3Modal({
       subtitle: 'Optimized for Ethereum & Base',
       badge: '',
       icon: '🌈',
-      color: 'border-purple-500/40 bg-purple-500/10'
+      color: 'border-purple-500/40 bg-purple-500/10',
+      connectionType: 'injected_eip1193',
+      protocolSpec: 'EIP-6963 / Injected',
+      rdns: 'me.rainbow'
     },
     {
       id: 'safe',
@@ -264,7 +288,10 @@ export default function Web3Modal({
       subtitle: 'Smart Contract Vault',
       badge: 'INSTITUTIONAL',
       icon: '🛡️',
-      color: 'border-emerald-500/40 bg-emerald-500/10'
+      color: 'border-emerald-500/40 bg-emerald-500/10',
+      connectionType: 'safe_multisig',
+      protocolSpec: 'Safe Apps Protocol',
+      rdns: 'global.safe'
     }
   ];
 
@@ -349,6 +376,17 @@ export default function Web3Modal({
             </button>
           )}
           <button
+            onClick={() => setActiveView('cdp')}
+            className={`py-2.5 px-3 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeView === 'cdp'
+                ? 'border-blue-400 text-blue-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+            CDP Option
+          </button>
+          <button
             onClick={() => setActiveView('networks')}
             className={`py-2.5 px-3 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeView === 'networks'
@@ -369,6 +407,17 @@ export default function Web3Modal({
           >
             <Terminal className="w-3.5 h-3.5" />
             Reown Debug
+          </button>
+          <button
+            onClick={() => setActiveView('types')}
+            className={`py-2.5 px-3 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeView === 'types'
+                ? 'border-cyan-400 text-cyan-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Code className="w-3.5 h-3.5" />
+            Types Spec
           </button>
           {activeAddress && (
             <button
@@ -441,7 +490,15 @@ export default function Web3Modal({
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400">{w.subtitle}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-slate-400">{w.subtitle}</p>
+                          <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-950 text-cyan-300 border border-slate-800 shrink-0">
+                            {w.connectionType}
+                          </code>
+                          <code className="text-[9px] font-mono text-slate-500 bg-slate-950/70 px-1.5 py-0.5 rounded border border-slate-900 shrink-0 hidden sm:inline-block">
+                            {w.protocolSpec}
+                          </code>
+                        </div>
                       </div>
                     </div>
                     {connectingWallet === w.id ? (
@@ -484,6 +541,107 @@ export default function Web3Modal({
             </div>
           )}
 
+          {/* VIEW: CDP OPTION (COINBASE DEVELOPER PLATFORM) */}
+          {activeView === 'cdp' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-gradient-to-b from-blue-950/50 to-slate-900/90 border border-blue-500/30 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-lg">
+                      🔵
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-slate-100 font-serif">Coinbase Developer Platform (CDP)</h4>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-semibold">
+                          VERIFIED
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Sovereign Smart Wallet & Passkey infrastructure natively tuned for Base L2.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary Action Button */}
+                <button
+                  onClick={() => handleConnectProvider('coinbase')}
+                  disabled={connectingWallet === 'coinbase'}
+                  className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-950/50 cursor-pointer disabled:opacity-60"
+                >
+                  {connectingWallet === 'coinbase' ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Opening CDP Smart Wallet Prompt...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-blue-200" />
+                      <span>Connect with Coinbase Smart Wallet (Passkey / CDP)</span>
+                    </>
+                  )}
+                </button>
+
+                {/* CDP Feature Breakdown */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <div className="flex items-center gap-1.5 text-blue-400 font-bold font-mono text-[11px]">
+                      <Key className="w-3.5 h-3.5" />
+                      <span>WebAuthn Passkeys</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Secured by Touch ID, Face ID, or Windows Hello hardware enclaves. Zero seed phrases.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <div className="flex items-center gap-1.5 text-emerald-400 font-bold font-mono text-[11px]">
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>ERC-4337 Account</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Smart contract wallet with gasless sponsorship on Base Paymaster and bundled swaps.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <div className="flex items-center gap-1.5 text-cyan-400 font-bold font-mono text-[11px]">
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>Base Native L2</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Instant sub-second finality with execution fidelity matching Bushido Gi (義) principles.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <div className="flex items-center gap-1.5 text-purple-400 font-bold font-mono text-[11px]">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Chain Clarity</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Pre-flight simulation, human-readable call routing, and verified identity badges.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Technical Configuration spec */}
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] space-y-1 text-slate-400">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">SDK Provider:</span>
+                    <span className="text-slate-200">@coinbase/wallet-sdk (v4.0+)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Default Chain:</span>
+                    <span className="text-blue-400">Base Mainnet (Chain ID 8453)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Key Custody:</span>
+                    <span className="text-emerald-400">Self-Custodial Secure Enclave</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* VIEW: ACCOUNT */}
           {activeView === 'account' && activeAddress && (
             <div className="space-y-4">
@@ -507,6 +665,12 @@ export default function Web3Modal({
                       ) : (
                         <p className="text-[11px] text-slate-400 font-mono">Base Layer-2 Account</p>
                       )}
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] text-slate-500">Connection Type:</span>
+                        <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-950 text-cyan-300 border border-slate-800">
+                          {wallets.find(w => w.id === selectedProviderId)?.connectionType || 'injected_eip1193'}
+                        </code>
+                      </div>
                     </div>
                   </div>
 
@@ -703,20 +867,28 @@ export default function Web3Modal({
                 </div>
 
                 {/* Current Project ID Display */}
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono uppercase text-slate-400">
+                    <span className="text-[10px] font-mono uppercase text-slate-400 font-bold">
                       Active Project ID
                     </span>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                      {reownDiag?.isCustom ? 'CUSTOM USER ID' : 'DEFAULT'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {reownProjectId === '8be604f433ed93bd593c6bb8f9021ae7' ? (
+                        <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold">
+                          ✓ REOWN VERIFIED (8be604f4...)
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                          {reownDiag?.isCustom ? 'CUSTOM ID' : 'DEFAULT'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between gap-2 font-mono text-xs">
-                    <span className="text-slate-300 truncate select-all">{reownProjectId}</span>
+                    <span className="text-slate-200 font-bold truncate select-all">{reownProjectId}</span>
                     <button
                       onClick={() => handleCopy(reownProjectId)}
-                      className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white"
+                      className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
                       title="Copy Project ID"
                     >
                       {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -724,24 +896,57 @@ export default function Web3Modal({
                   </div>
                 </div>
 
+                {/* Project ID Advisory Card */}
+                <div className="p-3.5 rounded-xl bg-slate-950/70 border border-cyan-900/40 text-xs space-y-2">
+                  <div className="flex items-center gap-1.5 text-cyan-300 font-bold font-mono text-[11px]">
+                    <HelpCircle className="w-3.5 h-3.5" />
+                    <span>Do I need to change my Project ID?</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 space-y-1.5 leading-relaxed">
+                    <p>
+                      <strong className="text-slate-200">Usually No:</strong> The ID <code className="text-cyan-400 bg-slate-900 px-1 py-0.5 rounded font-mono">8be604f433ed93bd593c6bb8f9021ae7</code> is pre-configured and active across the Bushido relay bridge. CDP Smart Wallet and Web3Modal connect seamlessly.
+                    </p>
+                    <p>
+                      <strong className="text-slate-200">Only change if:</strong> You manage your own team on <a href="https://cloud.reown.com" target="_blank" rel="noreferrer" className="text-cyan-400 underline">cloud.reown.com</a> and want custom domain allowlists, your dApp logo on mobile wallets, or independent analytics.
+                    </p>
+                  </div>
+                  {reownProjectId !== '8be604f433ed93bd593c6bb8f9021ae7' && (
+                    <button
+                      onClick={async () => {
+                        const defaultId = '8be604f433ed93bd593c6bb8f9021ae7';
+                        setReownProjectId(defaultId);
+                        if (typeof window !== 'undefined') {
+                          localStorage.setItem('reown_project_id', defaultId);
+                        }
+                        await apiService.switchReownProjectId(defaultId);
+                        setReownMsg({ text: 'Restored verified Project ID (8be604f433ed93bd593c6bb8f9021ae7)', type: 'success' });
+                        await loadReownStatus(defaultId);
+                      }}
+                      className="w-full mt-1 py-1.5 px-3 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-mono text-[11px] font-bold cursor-pointer transition-colors"
+                    >
+                      Restore Verified Project ID (8be604f4...)
+                    </button>
+                  )}
+                </div>
+
                 {/* Project ID Switch Form */}
                 <div className="space-y-2 pt-1">
                   <label className="text-[11px] text-slate-300 font-medium block">
-                    Switch to Your Reown / WalletConnect Project ID:
+                    Switch to a Custom Reown / WalletConnect Project ID:
                   </label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={customProjectIdInput}
                       onChange={(e) => setCustomProjectIdInput(e.target.value)}
-                      placeholder="Paste 32-character Project ID..."
+                      placeholder="Paste 32-character hex ID..."
                       className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 focus:border-cyan-400 text-xs font-mono text-slate-100 placeholder-slate-600 outline-none"
                     />
                     <button
                       onClick={handleSwitchProjectId}
                       className="px-3 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs font-mono cursor-pointer shrink-0 transition-colors"
                     >
-                      Switch
+                      Apply
                     </button>
                   </div>
                   {reownDiag?.isCustom && (
@@ -749,7 +954,7 @@ export default function Web3Modal({
                       onClick={handleResetDefaultId}
                       className="text-[11px] text-slate-500 hover:text-slate-400 font-mono underline cursor-pointer"
                     >
-                      Reset to default Project ID
+                      Reset to default Project ID (8be604f4...)
                     </button>
                   )}
                   {reownMsg && (
@@ -783,7 +988,187 @@ export default function Web3Modal({
             </div>
           )}
 
-          {/* VIEW: SIGNATURE DELEGATION */}
+          {/* VIEW: CONNECTION TYPES SPEC */}
+          {activeView === 'types' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Code className="w-4 h-4 text-cyan-400" />
+                    <span className="text-xs font-bold text-slate-100 uppercase tracking-wider font-mono">
+                      Wallet Connection Types Spec
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const codeSnippet = `// Bushido Protocol - Wallet Connection Types\nexport type WalletProviderId = 'coinbase' | 'metamask' | 'walletconnect' | 'rainbow' | 'safe' | 'injected';\n\nexport type WalletConnectionType = \n  | 'injected_eip1193'\n  | 'smart_wallet_passkey'\n  | 'walletconnect_v2'\n  | 'safe_multisig'\n  | 'simulated_ephemeral';\n\nexport type WalletNetwork = 'mainnet' | 'sepolia';\n\nexport type WalletConnectionStatus = \n  | 'disconnected'\n  | 'connecting'\n  | 'connected'\n  | 'switching_network'\n  | 'signing'\n  | 'error';\n\nexport interface WalletProviderOption {\n  id: WalletProviderId;\n  name: string;\n  subtitle: string;\n  badge?: string;\n  icon: string;\n  color: string;\n  connectionType: WalletConnectionType;\n  protocolSpec: string;\n  rdns?: string;\n}\n\nexport interface WalletConnectionSession {\n  providerId: WalletProviderId;\n  connectionType: WalletConnectionType;\n  address: string;\n  chainId: number;\n  network: WalletNetwork;\n  balanceEth: string;\n  basename?: string | null;\n  isCoinbaseVerified?: boolean;\n  connectedAt: string;\n  status: WalletConnectionStatus;\n}`;
+                      handleCopy(codeSnippet);
+                      setCopiedTypes(true);
+                      setTimeout(() => setCopiedTypes(false), 2000);
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-cyan-300 transition-colors cursor-pointer border border-slate-700"
+                  >
+                    {copiedTypes ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-400" />
+                        <span className="text-emerald-400">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span>Copy Types</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Bushido implements standardized Web3 connection types conforming to EIP-1193, EIP-6963, ERC-4337, and WalletConnect v2 standards:
+                </p>
+
+                {/* Connection Types Grid */}
+                <div className="space-y-2">
+                  <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs font-mono font-bold text-cyan-300 bg-cyan-950/40 border border-cyan-800/50 px-2 py-0.5 rounded">
+                          injected_eip1193
+                        </code>
+                        <span className="text-[10px] font-mono text-slate-500">EIP-1193 / EIP-6963</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Browser extension or embedded mobile dApp browser provider via <code className="text-slate-300 bg-slate-900 px-1 rounded">window.ethereum</code>.
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded shrink-0">
+                      MetaMask / Rabby
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs font-mono font-bold text-blue-300 bg-blue-950/40 border border-blue-800/50 px-2 py-0.5 rounded">
+                          smart_wallet_passkey
+                        </code>
+                        <span className="text-[10px] font-mono text-slate-500">ERC-4337 / WebAuthn</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Smart Contract Account with biometric passkeys, account abstraction, and gas sponsorship on Base.
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded shrink-0">
+                      Coinbase Smart
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs font-mono font-bold text-amber-300 bg-amber-950/40 border border-amber-800/50 px-2 py-0.5 rounded">
+                          walletconnect_v2
+                        </code>
+                        <span className="text-[10px] font-mono text-slate-500">WCP v2 / Reown</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Encrypted relay bridge connection for over 300+ mobile wallets using QR code pairing or universal deep links.
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0">
+                      300+ Wallets
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs font-mono font-bold text-emerald-300 bg-emerald-950/40 border border-emerald-800/50 px-2 py-0.5 rounded">
+                          safe_multisig
+                        </code>
+                        <span className="text-[10px] font-mono text-slate-500">Safe Protocol</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Institutional multi-signature smart contract vault requiring M-of-N threshold signatures for execution.
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded shrink-0">
+                      Safe Vault
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs font-mono font-bold text-purple-300 bg-purple-950/40 border border-purple-800/50 px-2 py-0.5 rounded">
+                          simulated_ephemeral
+                        </code>
+                        <span className="text-[10px] font-mono text-slate-500">Ethers.js Local</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Deterministic cryptographic wallet simulation for sandbox and preview environments with simulated faucet balance.
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono text-purple-400 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded shrink-0">
+                      Sandbox Ready
+                    </span>
+                  </div>
+                </div>
+
+                {/* Code Block Spec View */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1 px-1">
+                    <span>TYPESCRIPT DEFINITION (src/types.ts)</span>
+                    <span className="text-cyan-400">Strict Types</span>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-black/90 border border-slate-800 text-[10px] font-mono text-slate-300 overflow-x-auto leading-relaxed max-h-56">
+                    <code>{`export type WalletProviderId = 'coinbase' | 'metamask' | 'walletconnect' | 'rainbow' | 'safe' | 'injected';
+
+export type WalletConnectionType = 
+  | 'injected_eip1193'
+  | 'smart_wallet_passkey'
+  | 'walletconnect_v2'
+  | 'safe_multisig'
+  | 'simulated_ephemeral';
+
+export type WalletNetwork = 'mainnet' | 'sepolia';
+
+export type WalletConnectionStatus = 
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'switching_network'
+  | 'signing'
+  | 'error';
+
+export interface WalletProviderOption {
+  id: WalletProviderId;
+  name: string;
+  subtitle: string;
+  badge?: string;
+  icon: string;
+  color: string;
+  connectionType: WalletConnectionType;
+  protocolSpec: string;
+  rdns?: string;
+}
+
+export interface WalletConnectionSession {
+  providerId: WalletProviderId;
+  connectionType: WalletConnectionType;
+  address: string;
+  chainId: number;
+  network: WalletNetwork;
+  balanceEth: string;
+  basename?: string | null;
+  isCoinbaseVerified?: boolean;
+  connectedAt: string;
+  status: WalletConnectionStatus;
+}`}</code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+          )}
           {activeView === 'signature' && (
             <div className="space-y-3">
               <div className="p-4 rounded-2xl bg-slate-900 border border-amber-500/30 space-y-3">

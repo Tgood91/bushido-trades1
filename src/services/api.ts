@@ -698,8 +698,8 @@ export const apiService = {
       return {
         success: true,
         diagnostics: {
-          projectId: projectId || 'b56e18d47c72ab683b10814fe9495694',
-          maskedProjectId: 'b56e18...5694',
+          projectId: projectId || '8be604f433ed93bd593c6bb8f9021ae7',
+          maskedProjectId: '8be604...1ae7',
           isCustom: false,
           isValidFormat: true,
           relayUrl: 'wss://relay.walletconnect.org',
@@ -735,7 +735,7 @@ export const apiService = {
     } catch {
       return {
         success: true,
-        uri: `wc:test-${Date.now()}@2?relay-protocol=irn&symKey=dummy&projectId=b56e18d47c72ab683b10814fe9495694`
+        uri: `wc:test-${Date.now()}@2?relay-protocol=irn&symKey=dummy&projectId=8be604f433ed93bd593c6bb8f9021ae7`
       };
     }
   }

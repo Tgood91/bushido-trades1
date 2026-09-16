@@ -7,7 +7,8 @@ import {
   formatPrice,
   POOL_ALLOCATION,
   CREATOR_ALLOCATION,
-  TOTAL_SUPPLY
+  TOTAL_SUPPLY,
+  generateInitialVolumeHistory
 } from '../utils';
 import { 
   Plus, 
@@ -182,6 +183,7 @@ export default function LaunchForm({ onCoinCreated, userAddress }: LaunchFormPro
         { timestamp: "12:00 PM", price: estimatedInitialPrice }
       ],
       volume24h: 0,
+      volumeHistory: generateInitialVolumeHistory(0.01, 24, name || symbol),
       feesGenerated: {
         creator: 0,
         platform: 0,

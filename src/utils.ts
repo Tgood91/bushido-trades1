@@ -46,6 +46,46 @@ export function generateInitialHistory(initialPrice: number, pointsCount = 12): 
 }
 
 /**
+ * Generates initial 24-hour volume trend data points for sparkline charts.
+ */
+export function generateInitialVolumeHistory(
+  totalVolume24h: number, 
+  pointsCount = 24, 
+  seed = 'virtue'
+): { timestamp: string; volume: number }[] {
+  const history: { timestamp: string; volume: number }[] = [];
+  const baseTime = new Date();
+  baseTime.setHours(baseTime.getHours() - pointsCount);
+
+  // Hash seed to generate deterministic variations per coin
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  const seedNum = (Math.abs(hash) % 1000) / 1000;
+
+  // Distribute 24h volume across intervals with realistic trading activity curve
+  const avgIntervalVol = Math.max(0.005, totalVolume24h / pointsCount);
+
+  for (let i = 0; i < pointsCount; i++) {
+    const time = new Date(baseTime.getTime() + i * 60 * 60 * 1000);
+    // Intraday peak and valley curve + coin specific seed perturbation
+    const wave = Math.sin((i / pointsCount) * Math.PI * 2 - Math.PI / 3) * 0.4;
+    const microJitter = Math.cos(i * 1.5 + seedNum * 10) * 0.25;
+    const factor = Math.max(0.15, 1.0 + wave + microJitter + (seedNum * 0.2 - 0.1));
+    const pointVol = parseFloat((avgIntervalVol * factor).toFixed(4));
+
+    history.push({
+      timestamp: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      volume: pointVol
+    });
+  }
+
+  return history;
+}
+
+/**
  * Helper to generate mock wallet addresses
  */
 export function generateRandomAddress(): string {
