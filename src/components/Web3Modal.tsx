@@ -1225,3 +1225,94 @@ export interface WalletConnectionSession {
     </div>
   );
 }
+import { ConnectButton, darkTheme } from "thirdweb/react";
+import { createThirdwebClient } from "thirdweb";
+import { inAppWallet, createWallet } from "thirdweb/wallets";
+
+const client = createThirdwebClient({
+  clientId: "....",
+});
+
+const wallets = [
+  inAppWallet({
+    auth: {
+      options: [
+        "google",
+        "discord",
+        "telegram",
+        "farcaster",
+        "email",
+        "x",
+        "passkey",
+        "phone",
+        "github",
+        "coinbase",
+      ],
+    },
+  }),
+  createWallet("io.metamask"),
+  createWallet("com.coinbase.wallet"),
+  createWallet("me.rainbow"),
+  createWallet("io.rabby"),
+  createWallet("io.zerion.wallet"),
+  createWallet("io.1inch.wallet"),
+  createWallet("com.trustwallet.app"),
+  createWallet("com.bitget.web3"),
+  createWallet("org.uniswap"),
+  createWallet("com.okex.wallet"),
+  createWallet("org.hot-labs"),
+  createWallet("app.keplr"),
+  createWallet("com.valoraapp"),
+  createWallet("com.robinhood.wallet"),
+  createWallet("com.veworld"),
+  createWallet("com.thirdweb"),
+  createWallet("com.reown"),
+  createWallet("com.reown.appkit-lab"),
+  createWallet("app.herewallet"),
+  createWallet("org.base.account"),
+  createWallet("com.binance.wallet"),
+  createWallet("global.safe"),
+  createWallet("co.arculus"),
+  createWallet("ag.jup"),
+  createWallet("com.kraken"),
+  createWallet("com.kucoin"),
+  createWallet("io.magiceden.wallet"),
+];
+
+function Example() {
+  return (
+    <ConnectButton
+      auth={{
+        async doLogin(params) {
+          // call your backend to verify the signed payload passed in params
+        },
+        async doLogout() {
+          // call your backend to logout the user if needed
+        },
+        async getLoginPayload(params) {
+          // call your backend and return the payload
+        },
+        async isLoggedIn() {
+          // call your backend to check if the user is logged in
+        },
+      }}
+      client={client}
+      connectButton={{ label: "Connect" }}
+      connectModal={{
+        showThirdwebBranding: false,
+        size: "compact",
+        title: "Sign in",
+      }}
+      theme={darkTheme({
+        colors: {
+          modalBg: "hsl(0, 92%, 30%)",
+          primaryText: "hsl(233, 67%, 50%)",
+          selectedTextColor: "hsl(0, 0%, 0%)",
+          secondaryText: "hsl(0, 0%, 63%)",
+          primaryButtonBg: "hsl(243, 67%, 48%)",
+        },
+      })}
+      wallets={wallets}
+    />
+  );
+}
